@@ -25,11 +25,28 @@
 - npm install在运行，完成后可测试Electron应用
 - 启动：npm start
 
-## 阶段2：Live2D动作控制 [Haiku 4.5负责]
-- [ ] 实现状态机（idle/working/output）
-- [ ] 在waifu-tips.js中暴露动作控制API
-- [ ] 实现从Electron主进程调用Live2D动作
-- [ ] 测试状态切换和动作播放
+## 阶段2：Live2D动作控制 ✅
+- [x] 实现改进的motion-controller.js
+- [x] 支持多种方式获取Live2D模型
+- [x] 实现状态机（idle/working/output）
+- [x] 暴露动作控制API
+  - `window.triggerMotion(state)` - 按状态触发动作
+  - `window.playLive2DMotion(motionName)` - 直接播放动作
+  - `window.claudePet` - 完整API对象
+- [x] 创建测试页面(test.html)用于验证
+
+**动作映射：**
+- idle: 无动作
+- working: thinking01 → thinking02 → thinking01 → ...（循环）
+- output: 随机从smile01-04和kandou01-03中选择
+
+**测试方法：**
+在浏览器控制台调用：
+```javascript
+window.triggerMotion('working')  // 触发工作动作
+window.triggerMotion('output')   // 触发输出动作
+window.triggerMotion('idle')     // 切换到待机
+```
 
 ## 阶段3：CLI检测器 [Haiku 4.5负责]
 - [ ] 实现detector.js

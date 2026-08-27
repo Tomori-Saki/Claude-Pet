@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Pet - Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        #live2d-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #live2d-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .controls h3 {
+            margin-bottom: 10px;
+        }
+
+        .controls button {
+            display: block;
+            margin: 5px 0;
+            padding: 8px 16px;
+            background: #0396FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .controls button:hover {
+            background: #43CBFF;
+        }
+
+        /* 对话框样式 */
+        #dialog-container {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            z-index: 998;
+            max-width: 400px;
+            transition: opacity 0.3s ease;
+        }
+
+        #dialog-container.dialog-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .dialog-box {
+            position: relative;
+            background: rgba(76, 191, 255, 0.8);
+            border: 1px solid rgba(104, 216, 255, 0.62);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 3px 15px 2px rgba(16, 51, 49, 0.3);
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.5;
+            animation: slideIn 0.3s ease;
+        }
+
+        .dialog-box.claude {
+            background: rgba(255, 140, 0, 0.8);
+            border: 1px solid rgba(255, 165, 0, 0.62);
+        }
+
+        .dialog-box.codex {
+            background: rgba(0, 150, 255, 0.8);
+            border: 1px solid rgba(100, 200, 255, 0.62);
+        }
+
+        .dialog-arrow {
+            position: absolute;
+            bottom: -8px;
+            right: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid rgba(76, 191, 255, 0.8);
+        }
+
+        .dialog-box.claude .dialog-arrow {
+            border-top-color: rgba(255, 140, 0, 0.8);
+        }
+
+        .dialog-box.codex .dialog-arrow {
+            border-top-color: rgba(0, 150, 255, 0.8);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="live2d-container">
+            <iframe id="live2d-frame" src="Live2dOnWeb/desktop.html"></iframe>
+        </div>
+    </div>
+
+    <!-- 对话框容器 -->
+    <div id="dialog-container" class="dialog-hidden">
+        <div class="dialog-box" id="dialog-box">
+            <div id="dialog-text"></div>
+            <div class="dialog-arrow"></div>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="controls">
+        <h3>测试控制</h3>
+        <button onclick="testShowDialog('这是一条测试消息', 'claude')">显示Claude对话</button>
+        <button onclick="testShowDialog('这是Codex的消息', 'codex')">显示Codex对话</button>
+        <button onclick="hideDialog()">隐藏对话框</button>
+        <button onclick="testTriggerMotion('working')">触发工作动作</button>
+        <button onclick="testTriggerMotion('output')">触发输出动作</button>
+    </div>
+
+    <script>
+        const dialogContainer = document.getElementById('dialog-container');
+        const dialogBox = document.getElementById('dialog-box');
+        const dialogText = document.getElementById('dialog-text');
+        const live2dFrame = document.getElementById('live2d-frame');
+
+        let hideTimer = null;
+
+        function showDialog(content, source = 'claude') {
+            clearTimeout(hideTimer);
+
+            // 更新样式
+            dialogBox.className = `dialog-box ${source}`;
+
+            // 更新内容
+            dialogText.textContent = content;
+
+            // 显示
+            dialogContainer.classList.remove('dialog-hidden');
+
+            // 5秒后自动隐藏
+            hideTimer = setTimeout(() => {
+                hideDialog();
+            }, 5000);
+        }
+
+        function hideDialog() {
+            dialogContainer.classList.add('dialog-hidden');
+            clearTimeout(hideTimer);
+        }
+
+        function triggerLive2DMotion(state) {
+            try {
+                if (live2dFrame.contentWindow && live2dFrame.contentWindow.triggerMotion) {
+                    live2dFrame.contentWindow.triggerMotion(state);
+                    console.log('[Test] Motion triggered:', state);
+                } else if (live2dFrame.contentWindow && live2dFrame.contentWindow.playLive2DMotion) {
+                    live2dFrame.contentWindow.playLive2DMotion(state);
+                    console.log('[Test] Motion triggered (alternative):', state);
+                } else {
+                    console.error('[Test] Live2D API not found');
+                }
+            } catch (e) {
+                console.error('[Test] Failed to trigger motion:', e);
+            }
+        }
+
+        // 测试函数
+        window.testShowDialog = showDialog;
+        window.hideDialog = hideDialog;
+        window.testTriggerMotion = triggerLive2DMotion;
+
+        // 页面加载完成后测试
+        window.addEventListener('load', () => {
+            console.log('[Test] Page loaded, waiting for Live2D...');
+            setTimeout(() => {
+                console.log('[Test] Testing Live2D...');
+                console.log('[Test] Live2D frame:', live2dFrame);
+                console.log('[Test] Live2D window:', live2dFrame.contentWindow);
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
