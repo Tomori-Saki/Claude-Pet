@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Pet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Live2D容器 -->
+    <div id="live2d-container">
+        <iframe id="live2d-frame" src="../Live2dOnWeb/desktop.html" frameborder="0"></iframe>
+    </div>
+
+    <!-- 对话框容器 -->
+    <div id="dialog-container" class="dialog-hidden">
+        <div class="dialog-box">
+            <div class="dialog-content">
+                <div class="dialog-text"></div>
+            </div>
+            <div class="dialog-arrow"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

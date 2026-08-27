@@ -1,0 +1,17 @@
+{
+  "name": "claude-pet",
+  "version": "0.1.0",
+  "description": "Claude/Codex interactive desktop pet",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3"
+  }
+}
