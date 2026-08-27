@@ -66,18 +66,56 @@ window.triggerMotion('idle')     // 切换到待机
 打开 `http://localhost:8080/detector-test.html` 进行测试
 
 **功能特性：**
+
 - 自动检测Claude/Codex CLI活动
 - 实时状态变化
 - 触发Live2D动作
 - 显示对话框提示（思考中/生成中）
 - JSON解析测试工具
 
-## 阶段4：对话显示 [Haiku 4.5负责]
-- [ ] 对话框UI（圆角矩形、毛玻璃）
-- [ ] 显示对话流内容
-- [ ] 根据来源切换颜色（橙/蓝）
-- [ ] 自动滚动和内容截断
-- [ ] 集成到Live2D显示下方
+## 阶段4：对话显示 ✅
+- [x] 对话框UI（圆角矩形、毛玻璃）
+- [x] 显示对话流内容
+- [x] 根据来源切换颜色（橙/蓝）
+- [x] 自动滚动和内容截断
+- [x] 集成到Live2D显示下方
+- [x] 改进的style.css（强化毛玻璃效果）
+- [x] 改进的app.js（完善对话框逻辑）
+- [x] 创建dialog-test.html测试工具
+
+**对话框特性：**
+- Claude风格：橙色（#FF8C00）
+- Codex风格：蓝色（#0096FF）
+- 毛玻璃背景（blur: 20px）
+- 动画过渡（slideInUp/fadeOut）
+- 自动5秒隐藏
+- 响应式设计
+
+**测试方法：**
+打开 `http://localhost:8080/dialog-test.html` 进行对话框测试
+
+**人工测试启动方法：**
+1. 确保HTTP服务器运行中：`python -m http.server 8080`
+2. 打开浏览器访问：
+   - Live2D + 动作测试：`http://localhost:8080/test.html`
+   - 对话框显示测试：`http://localhost:8080/dialog-test.html`
+   - 检测器功能测试：`http://localhost:8080/detector-test.html`
+3. 在浏览器控制台测试API：
+   ```javascript
+   // 显示Claude对话
+   window.claudePetUI.showDialog('这是测试消息', 'claude')
+   
+   // 显示Codex对话
+   window.claudePetUI.showDialog('这是Codex消息', 'codex')
+   
+   // 隐藏对话框
+   window.claudePetUI.hideDialog()
+   
+   // 触发动作
+   window.triggerMotion('working')
+   window.triggerMotion('output')
+   window.triggerMotion('idle')
+   ```
 
 ## 阶段5：优化 [Haiku 4.5负责]
 - [ ] 窗口拖动功能
