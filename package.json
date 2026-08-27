@@ -3,15 +3,45 @@
   "version": "0.1.0",
   "description": "Claude/Codex interactive desktop pet",
   "main": "src/main.js",
+  "homepage": "./",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
   },
   "devDependencies": {
-    "electron": "^27.0.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0",
+    "electron-builder-squirrel-windows": "25.1.8"
   },
   "dependencies": {
     "chokidar": "^3.5.3"
+  },
+  "build": {
+    "appId": "com.claudepet.app",
+    "productName": "Claude Pet",
+    "asar": false,
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "Live2dOnWeb/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}.exe"
+    }
   }
 }

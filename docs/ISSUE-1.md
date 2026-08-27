@@ -25,15 +25,34 @@ rm: cannot remove 'node_modules/electron': Device or resource busy
 - npm或yarn的缓存问题
 
 ## 解决方案
-1. 使用较新的Electron版本（28+）
-2. 或者使用yarn代替npm
-3. 或者在Linux环境下重新安装
+1. ✓ 升级到Electron 31.x版本
+2. ✓ 配置国内镜像源加速下载
+3. ✓ 使用yarn代替npm
 
-## 临时方案
-目前已改用浏览器测试方案（test.html + HTTP服务器），待后续解决。
+## 实际解决步骤
+1. 升级package.json中electron版本到 `^31.0.0`
+2. 配置yarn镜像源：
+   ```bash
+   yarn config set registry https://registry.npmmirror.com
+   yarn config set electron_mirror https://npmmirror.com/mirrors/electron/
+   ```
+3. 清理并重新安装：
+   ```bash
+   rm -rf node_modules yarn.lock
+   ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ yarn install
+   ```
+4. 若遇到"Device or resource busy"错误，先终止node进程：
+   ```bash
+   taskkill //F //IM node.exe
+   ```
+
+## 根本原因
+- Electron 27与Node.js 24存在兼容性问题
+- 国外镜像源下载速度慢且不稳定
+- npm在Windows下可能出现文件锁定问题
 
 ---
 
-**状态**: 挂起
+**状态**: 已解决 ✓
 **优先级**: 中等
-**指派**: @自己
+**解决时间**: 2026-08-27
