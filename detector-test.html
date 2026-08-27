@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Pet - Detector Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #0396FF;
+        }
+
+        .panel {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            margin-bottom: 15px;
+            color: #43CBFF;
+            font-size: 16px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #0396FF;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: #43CBFF;
+        }
+
+        button.danger {
+            background: #FF6B6B;
+        }
+
+        button.danger:hover {
+            background: #FF8787;
+        }
+
+        button.success {
+            background: #51CF66;
+        }
+
+        button.success:hover {
+            background: #69DB7C;
+        }
+
+        .status-box {
+            background: #1a1a1a;
+            border: 1px solid #0396FF;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .status-label {
+            color: #43CBFF;
+            font-weight: bold;
+        }
+
+        .status-value {
+            color: #51CF66;
+            margin-left: 10px;
+        }
+
+        .status-value.working {
+            color: #FFD93D;
+        }
+
+        .status-value.output {
+            color: #FF6B9D;
+        }
+
+        .status-value.idle {
+            color: #A8DADC;
+        }
+
+        .log {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            padding: 12px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px;
+        }
+
+        .log-time {
+            color: #888;
+        }
+
+        .log-level {
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .log-level.info {
+            color: #0396FF;
+        }
+
+        .log-level.success {
+            color: #51CF66;
+        }
+
+        .log-level.warn {
+            color: #FFD93D;
+        }
+
+        .log-level.error {
+            color: #FF6B6B;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        textarea {
+            flex: 1;
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 12px;
+            resize: none;
+            height: 100px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Claude Pet - CLI Detector Test</h1>
+
+        <div class="grid">
+            <!-- 左侧：控制面板 -->
+            <div>
+                <div class="panel">
+                    <h2>状态控制</h2>
+
+                    <div class="status-box">
+                        <span class="status-label">当前状态:</span>
+                        <span class="status-value" id="current-state">idle</span>
+                    </div>
+
+                    <div class="controls">
+                        <button class="success" onclick="testStateChange('idle')">设置 Idle</button>
+                        <button onclick="testStateChange('working')">设置 Working</button>
+                        <button class="danger" onclick="testStateChange('output')">设置 Output</button>
+                    </div>
+
+                    <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 14px;">快速测试序列</h3>
+                    <div class="controls">
+                        <button class="success" onclick="simulateSequence()">模拟完整对话</button>
+                        <button onclick="simulateWorking()">只测试Working</button>
+                        <button onclick="simulateOutput()">只测试Output</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>JSON解析测试</h2>
+
+                    <textarea id="json-input" placeholder="输入JSON内容进行解析测试...">{"type": "stream_delta", "delta": {"type": "content_block_delta", "content_block": {"type": "text", "text": "Hello"}}}</textarea>
+
+                    <button onclick="testParseJSON()" style="width: 100%;">测试解析</button>
+
+                    <div class="status-box" style="margin-top: 10px;">
+                        <span class="status-label">解析结果:</span>
+                        <span class="status-value" id="parse-result">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：日志面板 -->
+            <div>
+                <div class="panel">
+                    <h2>检测器日志</h2>
+
+                    <div class="controls">
+                        <button onclick="clearLog()">清空日志</button>
+                        <button class="success" onclick="logTestMessage()">测试日志</button>
+                    </div>
+
+                    <div class="log scrollbar" id="log-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logContainer = document.getElementById('log-container');
+        const currentStateEl = document.getElementById('current-state');
+        const parseResultEl = document.getElementById('parse-result');
+
+        /**
+         * 添加日志
+         */
+        function addLog(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            const levelColors = {
+                info: 'info',
+                success: 'success',
+                warn: 'warn',
+                error: 'error'
+            };
+
+            entry.innerHTML = `
+                <span class="log-time">[${timestamp}]</span>
+                <span class="log-level ${levelColors[level]}">${level.toUpperCase()}</span>
+                <span>${message}</span>
+            `;
+
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        /**
+         * 清空日志
+         */
+        function clearLog() {
+            logContainer.innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        /**
+         * 测试状态变化
+         */
+        function testStateChange(state) {
+            addLog(`触发状态变化: ${state}`, 'info');
+            updateCurrentState(state);
+
+            // 模拟Electron IPC
+            if (window.electronAPI) {
+                window.electronAPI.triggerMotion(state);
+            }
+
+            // 播放对应的Live2D动作
+            if (window.triggerMotion) {
+                window.triggerMotion(state);
+            }
+        }
+
+        /**
+         * 更新当前状态显示
+         */
+        function updateCurrentState(state) {
+            currentStateEl.textContent = state;
+            currentStateEl.className = `status-value ${state}`;
+            addLog(`状态已更新: ${state}`, 'success');
+        }
+
+        /**
+         * 模拟完整对话序列
+         */
+        function simulateSequence() {
+            addLog('开始模拟完整对话序列...', 'info');
+
+            setTimeout(() => {
+                testStateChange('working');
+                addLog('Claude开始思考...', 'warn');
+            }, 500);
+
+            setTimeout(() => {
+                testStateChange('output');
+                addLog('Claude开始生成回复...', 'warn');
+            }, 2500);
+
+            setTimeout(() => {
+                testStateChange('idle');
+                addLog('对话完成，返回待机状态', 'success');
+            }, 5000);
+        }
+
+        /**
+         * 测试Working状态
+         */
+        function simulateWorking() {
+            addLog('测试Working状态...', 'info');
+            testStateChange('working');
+        }
+
+        /**
+         * 测试Output状态
+         */
+        function simulateOutput() {
+            addLog('测试Output状态...', 'info');
+            testStateChange('output');
+        }
+
+        /**
+         * 测试JSON解析
+         */
+        function testParseJSON() {
+            const content = document.getElementById('json-input').value;
+
+            if (!content.trim()) {
+                addLog('请输入JSON内容', 'warn');
+                return;
+            }
+
+            addLog(`测试JSON解析: ${content.substring(0, 50)}...`, 'info');
+
+            // 模拟解析逻辑
+            try {
+                const json = JSON.parse(content);
+
+                let state = 'idle';
+                if (json.type && json.type.includes('start')) {
+                    state = 'working';
+                } else if (json.type && json.type.includes('delta')) {
+                    state = 'output';
+                } else if (json.type && json.type.includes('end')) {
+                    state = 'idle';
+                }
+
+                parseResultEl.textContent = state;
+                parseResultEl.className = `status-value ${state}`;
+                addLog(`JSON解析结果: ${state}`, 'success');
+            } catch (error) {
+                addLog(`JSON解析失败: ${error.message}`, 'error');
+                parseResultEl.textContent = '错误';
+                parseResultEl.className = 'status-value error';
+            }
+        }
+
+        /**
+         * 测试日志
+         */
+        function logTestMessage() {
+            addLog('这是一条测试日志消息', 'info');
+            addLog('一切正常运行', 'success');
+        }
+
+        // 初始化
+        window.addEventListener('load', () => {
+            addLog('检测器测试页面已加载', 'success');
+            addLog('可以测试状态变化和JSON解析', 'info');
+        });
+
+        // 监听状态变化（如果支持Live2D）
+        if (window.live2dFrame) {
+            console.log('[DetectorTest] Live2D frame detected');
+        }
+    </script>
+</body>
+</html>

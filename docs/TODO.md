@@ -48,13 +48,29 @@ window.triggerMotion('output')   // 触发输出动作
 window.triggerMotion('idle')     // 切换到待机
 ```
 
-## 阶段3：CLI检测器 [Haiku 4.5负责]
-- [ ] 实现detector.js
-- [ ] 监听Claude CLI日志/stream-json
-- [ ] 解析对话流状态
-- [ ] 通过IPC发送状态到渲染进程
-- [ ] 触发Live2D动作切换
-- [ ] （可选）支持Codex CLI检测
+## 阶段3：CLI检测器 ✅
+- [x] 完善detector.js
+  - 支持监听Claude和Codex CLI目录
+  - 智能解析stream-json格式
+  - 支持JSON和文本双重匹配
+  - 防抖处理防止频繁更新
+  - IPC处理器
+- [x] 创建detector-test.js用于测试
+- [x] 创建detector-test.html网页测试工具
+- [x] 实现状态识别逻辑
+  - stream_start → working
+  - stream_delta/content_block_delta → output
+  - stream_end/message_stop → idle
+
+**测试方法：**
+打开 `http://localhost:8080/detector-test.html` 进行测试
+
+**功能特性：**
+- 自动检测Claude/Codex CLI活动
+- 实时状态变化
+- 触发Live2D动作
+- 显示对话框提示（思考中/生成中）
+- JSON解析测试工具
 
 ## 阶段4：对话显示 [Haiku 4.5负责]
 - [ ] 对话框UI（圆角矩形、毛玻璃）
