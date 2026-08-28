@@ -245,14 +245,6 @@ body::before {
                 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 }
 
-/* Codex风格 - 蓝色 */
-.dialog-box.codex {
-    background: rgba(0, 150, 255, 0.85);
-    border-color: rgba(100, 200, 255, 0.8);
-    box-shadow: 0 8px 32px rgba(0, 150, 255, 0.2),
-                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-}
-
 /* 对话框内容 */
 .dialog-content {
     color: #fff;
@@ -284,10 +276,6 @@ body::before {
 
 .dialog-box.claude .dialog-arrow {
     border-top-color: rgba(255, 140, 0, 0.85);
-}
-
-.dialog-box.codex .dialog-arrow {
-    border-top-color: rgba(0, 150, 255, 0.85);
 }
 
 /* 动画 */

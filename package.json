@@ -1,7 +1,7 @@
 {
   "name": "claude-pet",
   "version": "0.1.0",
-  "description": "Claude/Codex interactive desktop pet",
+  "description": "Claude Code interactive desktop pet",
   "main": "src/main.js",
   "homepage": "./",
   "scripts": {

@@ -1,6 +1,6 @@
 # Claude Pet
 
-实时检测 Claude / Codex CLI 对话流的桌面桌宠，根据工作状态展示 Live2D 动作与对话气泡。
+实时检测 Claude Code CLI 对话流的桌面桌宠，根据工作状态展示 Live2D 动作与对话气泡。
 
 ## 功能介绍
 
@@ -25,7 +25,7 @@ Live2D 显示与动作系统基于开源项目 **Live2dOnWeb** 构建，支持�
 
 - Claude 输出按**行**逐条显示，每行一个气泡
 - 全部展示完毕后再切回待机状态
-- Claude 风格：橙色毛玻璃；Codex 风格：蓝色毛玻璃
+- Claude 风格：橙色毛玻璃气泡
 
 ### 窗口交互
 

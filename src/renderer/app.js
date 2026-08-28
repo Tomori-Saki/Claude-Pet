@@ -204,7 +204,7 @@ function handleStateChange(state, source) {
         bubbleProcessing = false;
         outputCompletePending = false;
         outputMotionTriggered = false;
-        showBubble(source === 'codex' ? 'Codex 思考中...' : 'Claude 思考中...', source === 'codex' ? 'codex' : 'claude');
+        showBubble('Claude 思考中...', 'claude');
         triggerLive2DMotion('working');
     } else if (state === 'idle') {
         bubbleQueue.length = 0;

@@ -1,6 +1,6 @@
 /**
  * Claude Pet - CLI Detector
- * 监听 Claude Code JSONL transcripts，按行推送输出气泡
+ * 监听 Claude Code JSONL 会话日志，按行推送输出气泡
  */
 
 const fs = require('fs');
@@ -21,7 +21,6 @@ class CLIDetector {
         this.outputCompleteSent = false;
         this.fileOffsets = new Map();
         this.petStatePath = path.join(app.getPath('home'), '.claude', 'pet-state.json');
-        // 每个会话文件追踪已推送的输出行
         this.outputTrackers = new Map();
     }
 
@@ -49,14 +48,9 @@ class CLIDetector {
     setupWatchers() {
         const home = app.getPath('home');
         const projectsPath = path.join(home, '.claude', 'projects');
-        const codexPath = path.join(home, '.codex');
 
         this.watchGlob(projectsPath, 'claude');
         this.watchFile(this.petStatePath, 'hooks');
-
-        if (fs.existsSync(codexPath)) {
-            this.watchGlob(codexPath, 'codex');
-        }
     }
 
     watchGlob(dirPath, source) {
@@ -153,32 +147,38 @@ class CLIDetector {
                 continue;
             }
 
-            const eventType = json.type || json.event || '';
-
-            // 用户消息 → 进入 working，重置输出追踪
-            if (eventType === 'user') {
-                tracker.sentLineCount = 0;
-                tracker.lastFullText = '';
-                tracker.outputStarted = false;
-                tracker.outputComplete = false;
-                this.outputCompleteSent = false;
-                clearTimeout(this.idleTimer);
-                this.handleStateChange('working', source);
-                continue;
-            }
-
-            // 提取助手输出文本
-            const textDelta = this.extractAssistantText(json);
-            if (textDelta !== null) {
-                this.processAssistantText(filePath, source, json, textDelta, tracker);
-            }
-
-            // 输出结束信号
-            if (this.isOutputCompleteEvent(json)) {
-                tracker.outputComplete = true;
-                this.emitOutputComplete(source);
-            }
+            this.processClaudeLine(json, tracker, source);
         }
+    }
+
+    /** Claude Code JSONL：type 为 user / assistant / stream delta */
+    processClaudeLine(json, tracker, source) {
+        const eventType = json.type || json.event || '';
+
+        if (eventType === 'user') {
+            this.resetOutputTracker(tracker);
+            clearTimeout(this.idleTimer);
+            this.handleStateChange('working', source);
+            return;
+        }
+
+        const textDelta = this.extractAssistantText(json);
+        if (textDelta !== null) {
+            this.processAssistantText(json, textDelta, tracker, source);
+        }
+
+        if (this.isOutputCompleteEvent(json)) {
+            tracker.outputComplete = true;
+            this.emitOutputComplete(source);
+        }
+    }
+
+    resetOutputTracker(tracker) {
+        tracker.sentLineCount = 0;
+        tracker.lastFullText = '';
+        tracker.outputStarted = false;
+        tracker.outputComplete = false;
+        this.outputCompleteSent = false;
     }
 
     readNewFileLines(filePath) {
@@ -229,10 +229,9 @@ class CLIDetector {
             .join('');
     }
 
-    processAssistantText(filePath, source, json, textDelta, tracker) {
+    processAssistantText(json, textDelta, tracker, source) {
         let fullText = tracker.lastFullText;
 
-        // 增量或完整消息
         if (textDelta.startsWith(fullText) || fullText === '') {
             fullText = textDelta;
         } else if (fullText.startsWith(textDelta)) {
@@ -260,7 +259,6 @@ class CLIDetector {
 
         this.emitOutputLines(newLines, source);
 
-        // 若本条 assistant 消息已结束，标记完成
         if (json.message?.stop_reason || json.stop_reason) {
             tracker.outputComplete = true;
             this.emitOutputComplete(source);
@@ -285,12 +283,11 @@ class CLIDetector {
 
         this.mainWindow.webContents.send('output-lines', {
             lines,
-            source: source === 'codex' ? 'codex' : 'claude'
+            source: 'claude'
         });
 
         console.log(`[CLIDetector] Output lines (${lines.length}):`, lines[0]?.slice(0, 40));
 
-        // 若长时间无新行，视为输出结束（兼容无 stop_reason 的情况）
         clearTimeout(this.outputStallTimer);
         this.outputStallTimer = setTimeout(() => {
             if (this.currentState === 'output') {
@@ -305,7 +302,7 @@ class CLIDetector {
         clearTimeout(this.outputStallTimer);
 
         this.mainWindow.webContents.send('output-complete', {
-            source: source === 'codex' ? 'codex' : 'claude'
+            source: 'claude'
         });
 
         console.log('[CLIDetector] Output complete, waiting for UI queue');
@@ -348,8 +345,8 @@ class CLIDetector {
 
         if (state === 'working') {
             this.mainWindow.webContents.send('display-dialog', {
-                text: source === 'codex' ? 'Codex 思考中...' : 'Claude 思考中...',
-                source: source === 'codex' ? 'codex' : 'claude',
+                text: 'Claude 思考中...',
+                source: 'claude',
                 mode: 'status'
             });
         } else if (state === 'idle') {
