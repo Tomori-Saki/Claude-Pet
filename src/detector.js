@@ -15,9 +15,11 @@ class CLIDetector {
         this.currentState = 'idle';
         this.debounceDelay = 200;
         this.debounceTimer = null;
-        this.idleTimer = null;
         this.outputStallTimer = null;
         this.outputStallMs = 4000;
+        // 对话流无新事件超过该时长则回到 idle（终端关闭、会话中断等）
+        this.activityStallTimer = null;
+        this.activityStallMs = 8000;
         this.outputCompleteSent = false;
         this.fileOffsets = new Map();
         this.petStatePath = path.join(app.getPath('home'), '.claude', 'pet-state.json');
@@ -137,6 +139,7 @@ class CLIDetector {
         const newLines = this.readNewFileLines(filePath);
         if (!newLines.length) return;
 
+        this.touchActivity(source);
         const tracker = this.getOutputTracker(filePath);
 
         for (const line of newLines) {
@@ -157,7 +160,6 @@ class CLIDetector {
 
         if (eventType === 'user') {
             this.resetOutputTracker(tracker);
-            clearTimeout(this.idleTimer);
             this.handleStateChange('working', source);
             return;
         }
@@ -279,8 +281,6 @@ class CLIDetector {
     emitOutputLines(lines, source) {
         if (!this.mainWindow?.webContents || !lines.length) return;
 
-        clearTimeout(this.idleTimer);
-
         this.mainWindow.webContents.send('output-lines', {
             lines,
             source: 'claude'
@@ -309,7 +309,45 @@ class CLIDetector {
     }
 
     scheduleIdleAfterOutput() {
-        clearTimeout(this.idleTimer);
+        this.clearActivityWatchdog();
+        this.handleStateChange('idle', 'cli');
+    }
+
+    /** 任意 JSONL 新事件时重置；超时后视为对话流已结束 */
+    touchActivity(source) {
+        this.clearActivityWatchdog();
+        if (this.currentState === 'idle') return;
+
+        this.activityStallTimer = setTimeout(() => {
+            this.handleActivityStall(source);
+        }, this.activityStallMs);
+    }
+
+    clearActivityWatchdog() {
+        clearTimeout(this.activityStallTimer);
+        this.activityStallTimer = null;
+    }
+
+    /**
+     * 对话流长时间无更新（如终端被关闭、Claude 异常退出）
+     * working → 直接 idle；output → 先结束输出再走 idle 流程
+     */
+    handleActivityStall(source) {
+        if (this.currentState === 'idle') return;
+
+        console.log(`[CLIDetector] ${this.activityStallMs}ms 无新事件，回到 idle (${this.currentState})`);
+
+        if (this.currentState === 'output') {
+            this.emitOutputComplete(source);
+            // 若 UI 没有输出气泡，可能不会触发 output-display-finished，兜底切 idle
+            setTimeout(() => {
+                if (this.currentState !== 'idle') {
+                    this.handleStateChange('idle', 'cli');
+                }
+            }, 500);
+            return;
+        }
+
         this.handleStateChange('idle', 'cli');
     }
 
@@ -328,6 +366,12 @@ class CLIDetector {
 
         this.currentState = state;
         console.log(`[CLIDetector] State: ${state} (${source})`);
+
+        if (state === 'idle') {
+            this.clearActivityWatchdog();
+        } else {
+            this.touchActivity(source);
+        }
 
         if (!this.mainWindow?.webContents) return;
 
@@ -381,8 +425,8 @@ class CLIDetector {
 
     destroy() {
         clearTimeout(this.debounceTimer);
-        clearTimeout(this.idleTimer);
         clearTimeout(this.outputStallTimer);
+        this.clearActivityWatchdog();
         this.watchers.forEach(w => { try { w.close(); } catch (_) { /* ignore */ } });
         this.watchers = [];
     }

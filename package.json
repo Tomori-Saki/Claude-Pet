@@ -41,7 +41,7 @@
       "icon": "assets/icon.ico"
     },
     "portable": {
-      "artifactName": "${productName}-${version}.exe"
+      "artifactName": "Claude-Pet-Portable.exe"
     }
   }
 }
