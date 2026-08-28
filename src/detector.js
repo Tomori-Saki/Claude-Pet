@@ -1,6 +1,6 @@
 /**
  * Claude Pet - CLI Detector
- * 监听Claude/Codex CLI的对话流
+ * 监听 Claude Code JSONL transcripts，按行推送输出气泡
  */
 
 const fs = require('fs');
@@ -13,14 +13,18 @@ class CLIDetector {
         this.mainWindow = null;
         this.watchers = [];
         this.currentState = 'idle';
-        this.lastEventTime = 0;
-        this.debounceDelay = 500; // 防抖延迟
+        this.debounceDelay = 200;
         this.debounceTimer = null;
+        this.idleTimer = null;
+        this.outputStallTimer = null;
+        this.outputStallMs = 4000;
+        this.outputCompleteSent = false;
+        this.fileOffsets = new Map();
+        this.petStatePath = path.join(app.getPath('home'), '.claude', 'pet-state.json');
+        // 每个会话文件追踪已推送的输出行
+        this.outputTrackers = new Map();
     }
 
-    /**
-     * 初始化检测器
-     */
     init(mainWindow) {
         this.mainWindow = mainWindow;
         this.setupWatchers();
@@ -28,262 +32,363 @@ class CLIDetector {
         console.log('[CLIDetector] Initialized');
     }
 
-    /**
-     * 设置IPC处理器
-     */
     setupIPCHandlers() {
-        ipcMain.on('trigger-state-change', (event, state) => {
-            this.handleStateChange(state);
+        ipcMain.on('trigger-state-change', (_event, state) => {
+            this.handleStateChange(state, 'manual');
         });
 
         ipcMain.on('get-current-state', (event) => {
             event.reply('current-state', this.currentState);
         });
+
+        ipcMain.on('output-display-finished', () => {
+            this.scheduleIdleAfterOutput();
+        });
     }
 
-    /**
-     * 设置文件监听器
-     */
     setupWatchers() {
-        // Claude CLI日志路径
-        const claudePath = path.join(app.getPath('home'), '.claude');
-        const codexPath = path.join(app.getPath('home'), '.codex');
+        const home = app.getPath('home');
+        const projectsPath = path.join(home, '.claude', 'projects');
+        const codexPath = path.join(home, '.codex');
 
-        // 监听Claude
-        this.watchDirectory(claudePath, 'claude');
+        this.watchGlob(projectsPath, 'claude');
+        this.watchFile(this.petStatePath, 'hooks');
 
-        // 监听Codex（可选）
-        this.watchDirectory(codexPath, 'codex');
-
-        console.log('[CLIDetector] Watchers setup complete');
+        if (fs.existsSync(codexPath)) {
+            this.watchGlob(codexPath, 'codex');
+        }
     }
 
-    /**
-     * 监听指定目录
-     */
-    watchDirectory(dirPath, source) {
+    watchGlob(dirPath, source) {
         if (!fs.existsSync(dirPath)) {
-            console.log(`[CLIDetector] ${source} directory not found: ${dirPath}`);
-            return;
+            console.warn(`[CLIDetector] Directory not found: ${dirPath}`);
         }
-
-        console.log(`[CLIDetector] Watching ${source} at: ${dirPath}`);
 
         const watcher = chokidar.watch(dirPath, {
             persistent: true,
-            ignored: /(^|[\/\\])\./,
-            awaitWriteFinish: {
-                stabilityThreshold: 300,
-                pollInterval: 100
-            },
-            depth: 5
+            ignoreInitial: true,
+            awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
+            usePolling: process.platform === 'win32',
+            interval: 500,
+            depth: 10,
+            ignored: (fp) => {
+                if (fp.toLowerCase().endsWith('.jsonl')) return false;
+                try {
+                    return fs.existsSync(fp) && fs.statSync(fp).isFile();
+                } catch (_) {
+                    return false;
+                }
+            }
         });
 
-        watcher.on('change', (filePath) => {
-            this.handleLogChange(filePath, source);
-        });
-
-        watcher.on('add', (filePath) => {
-            this.handleLogChange(filePath, source);
-        });
-
+        watcher.on('add', (fp) => this.handleFileUpdate(fp, source));
+        watcher.on('change', (fp) => this.handleFileUpdate(fp, source));
         this.watchers.push(watcher);
     }
 
-    /**
-     * 处理日志变化
-     */
-    handleLogChange(filePath, source) {
-        // 只关注stream-json或类似的日志文件
-        if (!this.isRelevantFile(filePath)) {
-            return;
-        }
+    watchFile(filePath, source) {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) return;
 
-        // 防抖处理
+        const watcher = chokidar.watch(filePath, {
+            persistent: true,
+            ignoreInitial: false,
+            awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 }
+        });
+
+        watcher.on('add', () => this.handlePetStateFile(source));
+        watcher.on('change', () => this.handlePetStateFile(source));
+        this.watchers.push(watcher);
+    }
+
+    getOutputTracker(filePath) {
+        if (!this.outputTrackers.has(filePath)) {
+            this.outputTrackers.set(filePath, {
+                sentLineCount: 0,
+                lastFullText: '',
+                outputStarted: false,
+                outputComplete: false
+            });
+        }
+        return this.outputTrackers.get(filePath);
+    }
+
+    handlePetStateFile(source) {
+        try {
+            if (!fs.existsSync(this.petStatePath)) return;
+            const json = JSON.parse(fs.readFileSync(this.petStatePath, 'utf-8'));
+            const state = json.state || json.status;
+            if (state && ['idle', 'working', 'output'].includes(state)) {
+                this.handleStateChange(state, source);
+            }
+        } catch (e) {
+            console.error('[CLIDetector] pet-state.json parse error:', e.message);
+        }
+    }
+
+    handleFileUpdate(filePath, source) {
+        if (!this.isRelevantFile(filePath)) return;
+
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
             try {
-                const content = fs.readFileSync(filePath, 'utf-8');
-                const state = this.parseStreamJSON(content, filePath);
-
-                if (state !== this.currentState) {
-                    this.handleStateChange(state, source);
-                }
+                this.processNewJsonlLines(filePath, source);
             } catch (error) {
-                console.error(`[CLIDetector] Error reading file ${filePath}:`, error.message);
+                console.error(`[CLIDetector] Error reading ${filePath}:`, error.message);
             }
         }, this.debounceDelay);
     }
 
-    /**
-     * 判断是否是相关文件
-     */
-    isRelevantFile(filePath) {
-        const relevantPatterns = [
-            'stream-json',
-            'stream.json',
-            'log',
-            '.claude',
-            '.codex',
-            'session',
-            'history'
-        ];
+    processNewJsonlLines(filePath, source) {
+        const newLines = this.readNewFileLines(filePath);
+        if (!newLines.length) return;
 
-        return relevantPatterns.some(pattern => filePath.toLowerCase().includes(pattern));
-    }
+        const tracker = this.getOutputTracker(filePath);
 
-    /**
-     * 解析stream-json判断状态
-     */
-    parseStreamJSON(content, filePath) {
-        try {
-            if (!content || content.length === 0) {
-                return 'idle';
-            }
-
-            // 检查文件大小变化（新增内容）
-            // 如果文件包含多行JSON，检查最后的状态
-
-            const lines = content.split('\n').filter(line => line.trim());
-            if (lines.length === 0) {
-                return 'idle';
-            }
-
-            const lastLine = lines[lines.length - 1];
-
-            // 尝试解析最后一行为JSON
+        for (const line of newLines) {
+            let json;
             try {
-                const json = JSON.parse(lastLine);
-
-                // 根据event type判断状态
-                if (json.type) {
-                    switch (json.type) {
-                        case 'stream_start':
-                        case 'stream_start_event':
-                            return 'working';
-
-                        case 'stream_delta':
-                        case 'content_block_delta':
-                        case 'input_deltas':
-                            return 'output';
-
-                        case 'stream_end':
-                        case 'stream_end_event':
-                        case 'message_stop':
-                            return 'idle';
-
-                        default:
-                            // 如果有message_start，表示开始工作
-                            if (json.type.includes('start')) {
-                                return 'working';
-                            }
-                            // 如果有delta，表示输出
-                            if (json.type.includes('delta') || json.type.includes('output')) {
-                                return 'output';
-                            }
-                    }
-                }
-
-                // 检查其他字段
-                if (json.event) {
-                    if (json.event.includes('start')) {
-                        return 'working';
-                    }
-                    if (json.event.includes('stop')) {
-                        return 'idle';
-                    }
-                }
-            } catch (parseError) {
-                // JSON解析失败，尝试文本匹配
-                const contentLower = content.toLowerCase();
-
-                if (contentLower.includes('stream_start') || contentLower.includes('message_start')) {
-                    return 'working';
-                }
-                if (contentLower.includes('content_block_delta') || contentLower.includes('stream_delta')) {
-                    return 'output';
-                }
-                if (contentLower.includes('stream_end') || contentLower.includes('message_stop')) {
-                    return 'idle';
-                }
+                json = JSON.parse(line);
+            } catch (_) {
+                continue;
             }
 
-            return 'idle';
-        } catch (error) {
-            console.error('[CLIDetector] Error parsing stream JSON:', error);
-            return 'idle';
+            const eventType = json.type || json.event || '';
+
+            // 用户消息 → 进入 working，重置输出追踪
+            if (eventType === 'user') {
+                tracker.sentLineCount = 0;
+                tracker.lastFullText = '';
+                tracker.outputStarted = false;
+                tracker.outputComplete = false;
+                this.outputCompleteSent = false;
+                clearTimeout(this.idleTimer);
+                this.handleStateChange('working', source);
+                continue;
+            }
+
+            // 提取助手输出文本
+            const textDelta = this.extractAssistantText(json);
+            if (textDelta !== null) {
+                this.processAssistantText(filePath, source, json, textDelta, tracker);
+            }
+
+            // 输出结束信号
+            if (this.isOutputCompleteEvent(json)) {
+                tracker.outputComplete = true;
+                this.emitOutputComplete(source);
+            }
         }
     }
 
-    /**
-     * 处理状态变化
-     */
-    handleStateChange(state, source = 'cli') {
-        if (state === this.currentState) {
-            return;
+    readNewFileLines(filePath) {
+        if (!fs.existsSync(filePath)) return [];
+
+        const stat = fs.statSync(filePath);
+        let offset = this.fileOffsets.get(filePath) || 0;
+
+        if (stat.size < offset) offset = 0;
+
+        const length = stat.size - offset;
+        if (length <= 0) return [];
+
+        const buffer = Buffer.alloc(length);
+        const fd = fs.openSync(filePath, 'r');
+        fs.readSync(fd, buffer, 0, length, offset);
+        fs.closeSync(fd);
+        this.fileOffsets.set(filePath, stat.size);
+
+        return buffer.toString('utf-8').split('\n').filter(l => l.trim());
+    }
+
+    extractAssistantText(json) {
+        const type = json.type || '';
+
+        if (type === 'assistant') {
+            return this.textFromContentBlocks(json.message?.content);
         }
+
+        if (type === 'content_block_delta' && json.delta?.type === 'text_delta') {
+            return json.delta.text || '';
+        }
+
+        if (type === 'stream_delta') {
+            return json.delta?.text || json.text || '';
+        }
+
+        return null;
+    }
+
+    textFromContentBlocks(content) {
+        if (typeof content === 'string') return content;
+        if (!Array.isArray(content)) return '';
+
+        return content
+            .filter(b => b.type === 'text')
+            .map(b => b.text || '')
+            .join('');
+    }
+
+    processAssistantText(filePath, source, json, textDelta, tracker) {
+        let fullText = tracker.lastFullText;
+
+        // 增量或完整消息
+        if (textDelta.startsWith(fullText) || fullText === '') {
+            fullText = textDelta;
+        } else if (fullText.startsWith(textDelta)) {
+            // 忽略旧内容
+        } else {
+            fullText += textDelta;
+        }
+
+        tracker.lastFullText = fullText;
+
+        const allLines = fullText
+            .split('\n')
+            .map(l => l.trim())
+            .filter(Boolean);
+
+        const newLines = allLines.slice(tracker.sentLineCount);
+        if (!newLines.length) return;
+
+        tracker.sentLineCount = allLines.length;
+
+        if (!tracker.outputStarted) {
+            tracker.outputStarted = true;
+            this.handleStateChange('output', source, { skipDialog: true });
+        }
+
+        this.emitOutputLines(newLines, source);
+
+        // 若本条 assistant 消息已结束，标记完成
+        if (json.message?.stop_reason || json.stop_reason) {
+            tracker.outputComplete = true;
+            this.emitOutputComplete(source);
+        }
+    }
+
+    isOutputCompleteEvent(json) {
+        const type = json.type || '';
+        return (
+            type === 'message_stop' ||
+            type === 'stream_end' ||
+            type === 'stream_end_event' ||
+            type === 'result' ||
+            json.event === 'message_stop'
+        );
+    }
+
+    emitOutputLines(lines, source) {
+        if (!this.mainWindow?.webContents || !lines.length) return;
+
+        clearTimeout(this.idleTimer);
+
+        this.mainWindow.webContents.send('output-lines', {
+            lines,
+            source: source === 'codex' ? 'codex' : 'claude'
+        });
+
+        console.log(`[CLIDetector] Output lines (${lines.length}):`, lines[0]?.slice(0, 40));
+
+        // 若长时间无新行，视为输出结束（兼容无 stop_reason 的情况）
+        clearTimeout(this.outputStallTimer);
+        this.outputStallTimer = setTimeout(() => {
+            if (this.currentState === 'output') {
+                this.emitOutputComplete(source);
+            }
+        }, this.outputStallMs);
+    }
+
+    emitOutputComplete(source) {
+        if (this.outputCompleteSent || !this.mainWindow?.webContents) return;
+        this.outputCompleteSent = true;
+        clearTimeout(this.outputStallTimer);
+
+        this.mainWindow.webContents.send('output-complete', {
+            source: source === 'codex' ? 'codex' : 'claude'
+        });
+
+        console.log('[CLIDetector] Output complete, waiting for UI queue');
+    }
+
+    scheduleIdleAfterOutput() {
+        clearTimeout(this.idleTimer);
+        this.handleStateChange('idle', 'cli');
+    }
+
+    isRelevantFile(filePath) {
+        const lower = filePath.toLowerCase();
+        return lower.endsWith('.jsonl') ||
+            lower.endsWith('pet-state.json') ||
+            lower.includes('stream-json');
+    }
+
+    handleStateChange(state, source = 'cli', options = {}) {
+        if (!['idle', 'working', 'output'].includes(state)) return;
+
+        const prevState = this.currentState;
+        if (state === prevState && state !== 'working') return;
 
         this.currentState = state;
-        const timestamp = new Date().toISOString();
+        console.log(`[CLIDetector] State: ${state} (${source})`);
 
-        console.log(`[CLIDetector] State changed: ${state} (${source}) at ${timestamp}`);
+        if (!this.mainWindow?.webContents) return;
 
-        if (this.mainWindow && this.mainWindow.webContents) {
-            // 发送状态变化事件
-            this.mainWindow.webContents.send('state-changed', {
-                state,
-                source,
-                timestamp
-            });
+        this.mainWindow.webContents.send('state-changed', {
+            state,
+            source,
+            timestamp: new Date().toISOString()
+        });
 
-            // 触发对应的动作
+        if (state !== prevState) {
             this.mainWindow.webContents.send('motion-triggered', state);
+        }
 
-            // 根据状态显示对话框（可选）
-            if (state === 'working') {
-                this.mainWindow.webContents.send('display-dialog', {
-                    text: '思考中...',
-                    source: source === 'codex' ? 'codex' : 'claude'
-                });
-            } else if (state === 'output') {
-                this.mainWindow.webContents.send('display-dialog', {
-                    text: '生成中...',
-                    source: source === 'codex' ? 'codex' : 'claude'
-                });
-            }
+        if (options.skipDialog) return;
+
+        if (state === 'working') {
+            this.mainWindow.webContents.send('display-dialog', {
+                text: source === 'codex' ? 'Codex 思考中...' : 'Claude 思考中...',
+                source: source === 'codex' ? 'codex' : 'claude',
+                mode: 'status'
+            });
+        } else if (state === 'idle') {
+            this.outputCompleteSent = false;
+            this.mainWindow.webContents.send('display-dialog', { hide: true });
+            this.outputTrackers.forEach(t => {
+                t.sentLineCount = 0;
+                t.lastFullText = '';
+                t.outputStarted = false;
+                t.outputComplete = false;
+            });
         }
     }
 
-    /**
-     * 获取当前状态
-     */
-    getCurrentState() {
-        return this.currentState;
+    parseStreamJSON(content) {
+        if (!content?.trim()) return 'idle';
+        const lines = content.split('\n').filter(l => l.trim());
+        let last = 'idle';
+        for (const line of lines) {
+            try {
+                const json = JSON.parse(line);
+                if (json.type === 'user') last = 'working';
+                else if (json.type === 'assistant') last = 'output';
+            } catch (_) { /* ignore */ }
+        }
+        return last;
     }
 
-    /**
-     * 手动设置状态（用于测试）
-     */
     setState(state, source = 'manual') {
         this.handleStateChange(state, source);
     }
 
-    /**
-     * 清理资源
-     */
     destroy() {
         clearTimeout(this.debounceTimer);
-        this.watchers.forEach(watcher => {
-            try {
-                watcher.close();
-            } catch (e) {
-                console.error('[CLIDetector] Error closing watcher:', e);
-            }
-        });
+        clearTimeout(this.idleTimer);
+        clearTimeout(this.outputStallTimer);
+        this.watchers.forEach(w => { try { w.close(); } catch (_) { /* ignore */ } });
         this.watchers = [];
-        console.log('[CLIDetector] Destroyed');
     }
 }
 
 module.exports = CLIDetector;
-

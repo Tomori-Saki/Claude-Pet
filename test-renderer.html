@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renderer Test - Claude Pet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            color: white;
+        }
+
+        .test-section {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #4cffdf;
+        }
+
+        button {
+            background: rgba(76, 255, 223, 0.2);
+            border: 2px solid #4cffdf;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(76, 255, 223, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .log {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4cffdf;
+            padding-left: 10px;
+        }
+
+        .log-entry.error {
+            border-left-color: #ff4c4c;
+            color: #ff9999;
+        }
+
+        .log-entry.success {
+            border-left-color: #4cff4c;
+            color: #99ff99;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+
+        .status.ok {
+            background: #4cff4c;
+            color: #000;
+        }
+
+        .status.fail {
+            background: #ff4c4c;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Claude Pet 渲染器测试面板</h1>
+
+    <!-- 文件加载测试 -->
+    <div class="test-section">
+        <h2>1. 文件加载测试</h2>
+        <div id="file-status"></div>
+        <div class="log" id="file-log"></div>
+    </div>
+
+    <!-- CSS 样式测试 -->
+    <div class="test-section">
+        <h2>2. CSS 样式测试</h2>
+        <button onclick="testStyles()">测试样式加载</button>
+        <div class="log" id="style-log"></div>
+    </div>
+
+    <!-- DOM 元素测试 -->
+    <div class="test-section">
+        <h2>3. DOM 元素测试</h2>
+        <button onclick="testDOMElements()">检查必需元素</button>
+        <div class="log" id="dom-log"></div>
+    </div>
+
+    <!-- Live2D 测试 -->
+    <div class="test-section">
+        <h2>4. Live2D 加载测试</h2>
+        <button onclick="testLive2D()">检查 Live2D</button>
+        <div class="log" id="live2d-log"></div>
+    </div>
+
+    <!-- 事件测试 -->
+    <div class="test-section">
+        <h2>5. 事件处理测试</h2>
+        <button onclick="testEvents()">测试事件系统</button>
+        <div class="log" id="event-log"></div>
+    </div>
+
+    <script>
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // 1. 文件加载测试
+        window.addEventListener('DOMContentLoaded', () => {
+            log('file-log', '✓ DOMContentLoaded 事件触发', 'success');
+
+            // 检查 style.css
+            const styles = document.styleSheets;
+            log('file-log', `共加载 ${styles.length} 个样式表`);
+
+            // 检查脚本
+            const scripts = document.scripts;
+            log('file-log', `共加载 ${scripts.length} 个脚本文件`);
+            for (let script of scripts) {
+                log('file-log', `脚本: ${script.src || '内联脚本'}`);
+            }
+
+            document.getElementById('file-status').innerHTML =
+                `<span class="status ok">✓ 页面已加载</span>`;
+        });
+
+        // 2. CSS 样式测试
+        function testStyles() {
+            const logId = 'style-log';
+            document.getElementById(logId).innerHTML = '';
+
+            log(logId, '开始测试 CSS 样式...');
+
+            // 检查重要的 CSS 类
+            const classesToCheck = [
+                'window-controls',
+                'debug-panel',
+                'debug-btn',
+                'live2d-container',
+                'resize-handle'
+            ];
+
+            classesToCheck.forEach(className => {
+                const element = document.querySelector(`.${className}, #${className}`);
+                if (element) {
+                    const styles = window.getComputedStyle(element);
+                    log(logId, `✓ ${className}: display=${styles.display}, position=${styles.position}`, 'success');
+                } else {
+                    log(logId, `✗ 未找到元素: ${className}`, 'error');
+                }
+            });
+        }
+
+        // 3. DOM 元素测试
+        function testDOMElements() {
+            const logId = 'dom-log';
+            document.getElementById(logId).innerHTML = '';
+
+            log(logId, '检查必需的 DOM 元素...');
+
+            const requiredIds = [
+                'window-controls',
+                'debug-panel',
+                'live2d-container',
+                'dialog-container',
+                'minimize-btn',
+                'maximize-btn',
+                'close-btn'
+            ];
+
+            let allFound = true;
+            requiredIds.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    log(logId, `✓ 找到元素: #${id}`, 'success');
+                } else {
+                    log(logId, `✗ 缺失元素: #${id}`, 'error');
+                    allFound = false;
+                }
+            });
+
+            // 检查调试按钮
+            const debugBtns = document.querySelectorAll('.debug-btn');
+            log(logId, `找到 ${debugBtns.length} 个调试按钮 (期望: 3)`);
+
+            if (allFound) {
+                log(logId, '✓ 所有必需元素都存在！', 'success');
+            } else {
+                log(logId, '✗ 有元素缺失，请检查 HTML', 'error');
+            }
+        }
+
+        // 4. Live2D 测试
+        function testLive2D() {
+            const logId = 'live2d-log';
+            document.getElementById(logId).innerHTML = '';
+
+            log(logId, '检查 Live2D 相关资源...');
+
+            // 检查 canvas
+            const canvas2 = document.getElementById('live2d2');
+            const canvas4 = document.getElementById('live2d4');
+
+            if (canvas2) {
+                log(logId, `✓ live2d2 canvas 存在`, 'success');
+            } else {
+                log(logId, `✗ live2d2 canvas 不存在`, 'error');
+            }
+
+            if (canvas4) {
+                log(logId, `✓ live2d4 canvas 存在`, 'success');
+            } else {
+                log(logId, `✗ live2d4 canvas 不存在`, 'error');
+            }
+
+            // 检查全局对象
+            if (window.Live2D) {
+                log(logId, `✓ Live2D SDK 已加载`, 'success');
+            } else {
+                log(logId, `✗ Live2D SDK 未加载`, 'error');
+            }
+
+            if (window.claudePet) {
+                log(logId, `✓ claudePet 控制器已加载`, 'success');
+                log(logId, `可用方法: ${Object.keys(window.claudePet).join(', ')}`);
+            } else {
+                log(logId, `✗ claudePet 控制器未加载`, 'error');
+            }
+        }
+
+        // 5. 事件测试
+        function testEvents() {
+            const logId = 'event-log';
+            document.getElementById(logId).innerHTML = '';
+
+            log(logId, '测试事件处理...');
+
+            // 测试调试按钮点击
+            const debugBtns = document.querySelectorAll('.debug-btn');
+            if (debugBtns.length > 0) {
+                log(logId, `✓ 找到 ${debugBtns.length} 个调试按钮`, 'success');
+
+                debugBtns.forEach((btn, idx) => {
+                    const state = btn.getAttribute('data-state');
+                    log(logId, `按钮 ${idx + 1}: state="${state}"`);
+
+                    // 检查是否有点击事件
+                    const hasListener = btn.onclick || btn.addEventListener;
+                    if (hasListener) {
+                        log(logId, `  ✓ 按钮 ${idx + 1} 有事件监听器`, 'success');
+                    }
+                });
+            } else {
+                log(logId, `✗ 未找到调试按钮`, 'error');
+            }
+
+            // 测试拖动区域
+            const dragRegion = document.querySelector('.drag-region');
+            if (dragRegion) {
+                const styles = window.getComputedStyle(dragRegion);
+                log(logId, `✓ 拖动区域: -webkit-app-region=${styles.webkitAppRegion}`, 'success');
+            }
+        }
+
+        // 自动运行所有测试
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('file-log', '开始自动测试...', 'success');
+                testStyles();
+                testDOMElements();
+                testLive2D();
+                testEvents();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

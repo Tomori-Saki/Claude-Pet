@@ -7,10 +7,41 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Live2D容器 -->
-    <div id="live2d-container">
-        <iframe id="live2d-frame" src="../Live2dOnWeb/desktop.html" frameborder="0"></iframe>
+    <!-- 窗口控制栏 -->
+    <div id="window-controls">
+        <button id="switch-model-btn" class="control-btn switch-model-btn" title="切换模型">&gt;</button>
+        <div class="drag-region"></div>
+        <div class="control-buttons">
+            <button id="minimize-btn" class="control-btn" title="最小化">−</button>
+            <button id="maximize-btn" class="control-btn" title="最大化">□</button>
+            <button id="close-btn" class="control-btn close" title="关闭">×</button>
+        </div>
     </div>
+
+    <!-- 窗口调整大小边缘 -->
+    <div class="resize-handle resize-top"></div>
+    <div class="resize-handle resize-right"></div>
+    <div class="resize-handle resize-bottom"></div>
+    <div class="resize-handle resize-left"></div>
+    <div class="resize-handle resize-corner resize-top-left"></div>
+    <div class="resize-handle resize-corner resize-top-right"></div>
+    <div class="resize-handle resize-corner resize-bottom-left"></div>
+    <div class="resize-handle resize-corner resize-bottom-right"></div>
+
+    <!-- Live2D容器 -->
+    <iframe id="live2dFrame" src="../../Live2dOnWeb/desktop.html"
+            style="position: fixed;
+                   bottom: 0;
+                   left: 0;
+                   right: 0;
+                   top: 32px;
+                   width: 100%;
+                   height: calc(100% - 32px);
+                   border: none;
+                   background: transparent;
+                   pointer-events: none;
+                   z-index: 10002;">
+    </iframe>
 
     <!-- 对话框容器 -->
     <div id="dialog-container" class="dialog-hidden">

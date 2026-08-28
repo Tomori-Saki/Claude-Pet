@@ -19,7 +19,7 @@
 - [x] 实现preload.js（IPC桥接）
 - [x] 实现detector.js（CLI对话流检测器框架）
 - [x] 创建renderer目录的HTML/CSS/JS（对话框显示）
-- [ ] 测试Live2D模型在Electron中显示
+- [x] 测试Live2D模型在Electron中显示
 
 **注意：** 
 - npm install在运行，完成后可测试Electron应用
@@ -117,16 +117,15 @@ window.triggerMotion('idle')     // 切换到待机
    window.triggerMotion('idle')
    ```
 
-## 阶段5：优化 [Haiku 4.5负责]
-- [ ] 窗口拖动功能
-- [ ] 托盘图标和菜单
-- [ ] 开机自启动（可选）
-- [ ] 打包配置（electron-builder）
+## 阶段5：优化 ✅
+- [x] 窗口拖动与缩放
+- [x] 打包配置（electron-builder）
+- [x] Issue#3 修复：CLI JSONL 监测、Live2D 动作、目光跟随
+- [x] 分行气泡输出、输出完成后待机
+- [x] 顶部栏模型切换按钮
+- [ ] 托盘图标和菜单（暂缓）
+- [ ] 开机自启动（可选，暂缓）
 
 ---
 
-**注意**：
-- Live2D模型已准备完成，位于 `Live2dOnWeb/model/`
-- 每个阶段完成后测试再进入下一阶段
-- CLI检测路径需根据实际Claude/Codex安装位置调整
-- Live2D动作控制需要修改waifu-tips.js暴露接口
+**PROJECT_STATS (2026-08-28)**: Electron 桌宠 v0.1 阶段性完结 | CLI JSONL 监测✅ | 分行气泡✅ | Live2D 动作/目光✅ | 窗口交互✅
