@@ -2,7 +2,7 @@
 
 实时检测 Claude Code CLI 对话流的桌面桌宠，根据工作状态展示 Live2D 动作与对话气泡。
 
-**[⬇ 下载 Windows 便携版（最新）](https://github.com/Tomori-Saki/Claude-Codex-Pet/releases/latest/download/Claude-Pet-Portable.exe)**
+**[⬇ 下载 Windows 便携版（最新）](https://github.com/Tomori-Saki/Claude-Pet/releases/latest/download/Claude-Pet-Portable.exe)**
 
 ## 功能介绍
 
@@ -38,7 +38,7 @@ Live2D 显示与动作系统基于开源项目 **Live2dOnWeb** 构建，支持�
 
 ### 方式一：下载打包版（推荐）
 
-1. 打开 [Releases 页面](https://github.com/Tomori-Saki/Claude-Codex-Pet/releases/latest)
+1. 打开 [Releases 页面](https://github.com/Tomori-Saki/Claude-Pet/releases/latest)
 2. 下载 `Claude-Pet-Portable.exe`，双击运行，无需安装
 
 也可直接点击 README 顶部的下载链接。
@@ -49,8 +49,8 @@ Live2D 显示与动作系统基于开源项目 **Live2dOnWeb** 构建，支持�
 
 ```bash
 # 克隆项目
-git clone https://github.com/Tomori-Saki/Claude-Codex-Pet.git
-cd Claude-Codex-Pet
+git clone https://github.com/Tomori-Saki/Claude-Pet.git
+cd Claude-Pet
 
 # 安装依赖
 yarn install
