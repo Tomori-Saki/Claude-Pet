@@ -12,3 +12,9 @@ dist/
 .vscode/
 docs/
 CLAUDE.md
+
+# 测试页面（不推送）
+*test*.html
+src/detector-test.js
+start-server.bat
+start-server.sh

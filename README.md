@@ -47,8 +47,8 @@ Live2D 显示与动作系统基于开源项目 **Live2dOnWeb** 构建，支持�
 
 ```bash
 # 克隆项目
-git clone <仓库地址>
-cd ClaudePet
+git clone https://github.com/Tomori-Saki/Claude-Codex-Pet.git
+cd Claude-Codex-Pet
 
 # 安装依赖
 yarn install
@@ -70,3 +70,10 @@ yarn build:win
 ```
 
 打包产物输出至 `dist/` 目录。
+
+## 致谢
+
+本项目的 Live2D 显示与模型加载能力基于开源项目 **[Live2dOnWeb](https://github.com/Konata09/Live2dOnWeb)** 构建，感谢 [Konata09](https://github.com/Konata09) 及 Live2dOnWeb 社区贡献者的优秀工作。
+
+- 项目地址：https://github.com/Konata09/Live2dOnWeb
+- 本项目在 Live2dOnWeb 基础上集成了 Electron 桌宠、CLI 状态监测与对话气泡等功能
