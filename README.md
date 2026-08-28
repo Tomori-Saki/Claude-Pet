@@ -1,122 +1,72 @@
-# Claude/Codex Pet 🐾
+# Claude Pet
 
-一个实时检测 Claude/Codex CLI 对话流的桌宠应用，根据不同工作状态展现不同的动作和对话框。
+实时检测 Claude / Codex CLI 对话流的桌面桌宠，根据工作状态展示 Live2D 动作与对话气泡。
 
-## 功能特性
+## 功能介绍
 
-✨ **实时状态检测** - 监听 Claude/Codex CLI 的对话流，自动识别三种状态：
-- 🔴 **待机** (Idle) - 无工作时
-- 🟡 **工作中** (Working) - Agent 处理中
-- 🟢 **生成中** (Output) - 文本生成中
+### CLI 状态监测
 
-🎨 **Live2D 动画** - 基于 Cubism SDK 2.1 的精美 Live2D 角色模型
-- 支持 4 个不同的角色模型切换
-- 平滑的动作切换
-- 透明背景适配桌面
+监听 Claude Code 会话日志（`~/.claude/projects/**/*.jsonl`），自动识别三种状态：
 
-💬 **毛玻璃对话框** - 圆角矩形设计
-- Claude 对话：橙色深色背景
-- Codex 对话：蓝色深色背景
-- 自动隐藏，支持长文本显示
+- **待机（Idle）** — 无对话活动
+- **工作中（Working）** — 用户发送消息，Agent 开始处理
+- **输出中（Output）** — Claude 正在生成回复
+
+### Live2D 角色（基于 [Live2dOnWeb](https://github.com/Konata09/Live2dOnWeb)）
+
+Live2D 显示与动作系统基于开源项目 **Live2dOnWeb** 构建，支持该项目兼容的 **Cubism SDK 2.x / 4.x** 模型。将符合 Live2dOnWeb 规范的模型放入 `Live2dOnWeb/model/` 并在 `waifu-tips.js` 中注册后，即可载入使用，不限于预置角色。
+
+- 透明背景，适配桌面桌宠场景
+- 目光跟随鼠标
+- 顶部栏 `>` 按钮切换模型
+- 按状态播放动作（思考 / 输出 / 待机）
+
+### 对话气泡
+
+- Claude 输出按**行**逐条显示，每行一个气泡
+- 全部展示完毕后再切回待机状态
+- Claude 风格：橙色毛玻璃；Codex 风格：蓝色毛玻璃
+
+### 窗口交互
+
+- 无边框透明窗口，可拖动、可缩放
+- 置顶显示，不遮挡桌面操作
 
 ## 安装
 
-### 从 Release 下载
-1. 访问 [Release 页面](https://github.com/your-repo/releases)
-2. 下载最新版本的 `Claude Pet Setup.exe` 或 `Claude Pet.exe`
-3. 运行安装程序或直接运行便携版
+### 方式一：下载打包版（推荐）
 
-### 从源码构建
+1. 在项目 `dist/` 目录找到 `Claude Pet-0.1.0.exe`（便携版）
+2. 双击运行，无需安装
+
+> 修改源码后需重新执行 `yarn build:win` 生成最新打包文件。
+
+### 方式二：从源码运行
+
+**环境要求：** Node.js 18+、Yarn
+
 ```bash
 # 克隆项目
-git clone https://github.com/your-repo/ClaudePet.git
+git clone <仓库地址>
 cd ClaudePet
 
 # 安装依赖
 yarn install
 
-# 开发模式运行
-yarn dev
+# 启动应用
+yarn start
+```
 
-# 构建 Windows 版本
+**开发模式（带 DevTools）：**
+
+```bash
+yarn dev
+```
+
+**重新打包 Windows 便携版：**
+
+```bash
 yarn build:win
 ```
 
-## 使用
-
-1. **启动应用**
-   ```bash
-   yarn start
-   ```
-
-2. **在 Claude CLI 中工作**
-   - 打开 Claude CLI
-   - Claude Pet 会自动监听并反应状态变化
-   - 桌宠会根据状态表现不同动作
-
-3. **窗口操作**
-   - 拖动窗口移动位置
-   - 右键或双击触发特定动作
-   - 关闭窗口退出应用
-
-## 项目结构
-
-```
-ClaudePet/
-├── src/                      # Electron 主程序
-│   ├── main.js              # 主进程（窗口管理）
-│   ├── preload.js           # 预加载脚本
-│   ├── detector.js          # CLI 检测器
-│   └── renderer/
-│       ├── index.html       # 主界面
-│       ├── style.css        # 样式
-│       └── app.js           # 前端逻辑
-├── Live2dOnWeb/             # Live2D 模块
-│   ├── desktop.html         # 透明背景页面
-│   ├── waifu-tips.js        # Live2D 配置
-│   └── model/               # 角色模型文件
-├── assets/                  # 应用资源
-│   └── icon.ico             # 应用图标
-├── docs/                    # 项目文档
-├── package.json             # 项目配置
-└── README.md                # 本文件
-```
-
-## 技术栈
-
-- **框架**: Electron 31.x
-- **前端**: HTML5 + CSS3 + JavaScript
-- **动画**: Live2D Cubism SDK 2.1
-- **监听**: Chokidar (文件系统监听)
-- **打包**: Electron Builder
-
-## 开发文档
-
-- [架构设计](docs/architecture.md) - 详细的系统设计
-- [阶段进度](docs/) - 各阶段完成情况
-  - 阶段 1: Electron 框架搭建
-  - 阶段 2: Live2D 动作控制系统
-  - 阶段 3: CLI 检测器实现
-  - 阶段 4: 对话显示框实现
-  - 阶段 5: 应用打包与发布
-- [问题记录](docs/ISSUE-1.md) - 已解决的问题
-
-## 系统要求
-
-- **OS**: Windows 7 或更高版本
-- **运行**: 无需额外依赖
-- **开发**: Node.js 18+, Yarn/npm
-
-## 许可证
-
-MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
----
-
-**项目状态**: ✅ 完成  
-**当前版本**: v0.1.0  
-**最后更新**: 2026-08-27
+打包产物输出至 `dist/` 目录。

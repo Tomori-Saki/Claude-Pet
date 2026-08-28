@@ -5,3 +5,10 @@ dist/
 .env
 .env.local
 .cache/
+
+# 本地 IDE / 文档，不推送
+.claude/
+.cursor/
+.vscode/
+docs/
+CLAUDE.md
