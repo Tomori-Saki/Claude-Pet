@@ -173,7 +173,8 @@ function onOutputComplete() {
 }
 
 function triggerLive2DMotion(state) {
-    if (state === currentMotionState && state !== 'output') return;
+    // idle 需允许重复触发以重置为纯待机；output 可连续触发
+    if (state === currentMotionState && state !== 'output' && state !== 'idle') return;
     currentMotionState = state;
 
     try {
